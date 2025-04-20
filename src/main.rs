@@ -2,7 +2,7 @@ use chrono::{DateTime, Duration, Utc};
 use chrono_humanize::HumanTime;
 use clap::{Parser, Subcommand};
 use comfy_table::presets::UTF8_FULL;
-use comfy_table::{Cell, ContentArrangement, Table};
+use comfy_table::*;
 use console::style;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, fs, path::PathBuf};
@@ -33,15 +33,21 @@ enum Command {
         #[arg(help = "The name of the event to add")]
         event: String
     },
-    
+
     #[command(about = "List all events", long_about = "Displays all tracked events with time since they were last updated")]
     List,
-    
+
     #[command(about = "Mark an existing event as done now", long_about = "Updates the timestamp for an existing event to now")]
     Did {
         #[arg(help = "The name of the existing event to mark as done")]
         event: String,
     },
+
+    #[command(about = "Remove an event")]
+    Remove {
+        #[arg(help = "The name of the event to remove")]
+        event: String,
+    }
 }
 
 fn get_data_file() -> PathBuf {
@@ -100,6 +106,20 @@ fn set_event(event_name: &String, timestamp: &DateTime<Utc>) {
     save_events(&events);
 }
 
+fn remove_event(event_name: &String) {
+    let mut events = load_events();
+    if events.remove(event_name).is_some() {
+        save_events(&events);
+        println!("{} '{}' removed!", style("❌").bold().red(), style(event_name).underlined());
+    } else {
+        println!(
+            "'{}' {}",
+            style(event_name).italic().yellow(),
+            style("not found.").red()
+        );
+    }
+}
+
 fn main() {
     let args = Args::parse();
 
@@ -126,7 +146,10 @@ fn main() {
                 table
                     .load_preset(UTF8_FULL)
                     .set_content_arrangement(ContentArrangement::Dynamic)
-                    .set_header(vec!["Event", "Last Done"]);
+                    .set_header(vec![
+                        Cell::new("Event").add_attribute(Attribute::Bold),
+                        Cell::new("Last Done").add_attribute(Attribute::Bold),
+                    ]);
 
                 for (event_name, timestamp) in events.iter() {
                     let now = Utc::now();
@@ -142,12 +165,15 @@ fn main() {
         }
         Some(Command::Add { event: name }) => {
             set_event(&name, &Utc::now());
-            println!("{} '{}', added!", style("Got it").bold().green(), style(name).underlined());
+            println!("{} '{}' added!", style("➕").bold().green(), style(name).underlined());
         }
 
         Some(Command::Did { event: name, .. }) => {
             set_event(&name, &Utc::now());
-            println!("{} '{}', updated!", style("Done").bold().blue(), style(name).underlined());
+            println!("{} '{}', updated!", style("✅").bold().blue(), style(name).underlined());
+        }
+        Some(Command::Remove { event: name}) => {
+            remove_event(&name);
         }
     }
 }

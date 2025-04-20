@@ -7,6 +7,9 @@ add event="":
 did event="":
     cargo run -- did {{event}}
 
+remove event="":
+    cargo run -- remove {{event}}
+
 check event="":
     cargo run -- {{event}}
 
