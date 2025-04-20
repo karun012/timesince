@@ -4,6 +4,9 @@ run arg="":
 add event="":
     cargo run -- add {{event}}
 
+did event="":
+    cargo run -- did {{event}}
+
 check event="":
     cargo run -- {{event}}
 

@@ -29,10 +29,19 @@ struct Events {
 #[derive(Subcommand, Debug)]
 enum Command {
     #[command(about = "Add a new event", long_about = "Adds a new event and sets its timestamp to now")]
-    Add,
-
+    Add {
+        #[arg(help = "The name of the event to add")]
+        event: String
+    },
+    
     #[command(about = "List all events", long_about = "Displays all tracked events with time since they were last updated")]
     List,
+    
+    #[command(about = "Mark an existing event as done now", long_about = "Updates the timestamp for an existing event to now")]
+    Did {
+        #[arg(help = "The name of the existing event to mark as done")]
+        event: String,
+    },
 }
 
 fn get_data_file() -> PathBuf {
@@ -76,7 +85,7 @@ fn print_duration(event_name: &String, timestamp: &DateTime<Utc>, pretty: bool) 
     if pretty {
         println!(
             "{} {} {}",
-            style("You last did").bold(),
+            style("You last").bold(),
             style(event_name).green(),
             style(human_readable(duration)).bold()
         );
@@ -97,7 +106,7 @@ fn main() {
     match args.command {
         None => {
             let events = load_events();
-            let event_name = args.event.expect("No event name provided");
+            let event_name = args.event.expect("Need an event name");
 
             match events.get(&event_name) {
                 Some(&timestamp) => {
@@ -131,10 +140,14 @@ fn main() {
                 println!("{table}");
             }
         }
-        Some(Command::Add) => {
-            let event_name = args.event.expect("No event name provided");
-            set_event(&event_name, &Utc::now());
-            println!("Added {}", event_name);
+        Some(Command::Add { event: name }) => {
+            set_event(&name, &Utc::now());
+            println!("{} '{}', added!", style("Got it").bold().green(), style(name).underlined());
+        }
+
+        Some(Command::Did { event: name, .. }) => {
+            set_event(&name, &Utc::now());
+            println!("{} '{}', updated!", style("Done").bold().blue(), style(name).underlined());
         }
     }
 }
