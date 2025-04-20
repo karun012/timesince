@@ -91,7 +91,7 @@ fn print_duration(event_name: &String, timestamp: &DateTime<Utc>, pretty: bool) 
     if pretty {
         println!(
             "{} {} {}",
-            style("You last").bold(),
+            style("Time since").bold(),
             style(event_name).green(),
             style(human_readable(duration)).bold()
         );
