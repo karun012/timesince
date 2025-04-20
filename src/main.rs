@@ -1,13 +1,20 @@
 use chrono::{DateTime, Duration, Utc};
+use chrono_humanize::HumanTime;
 use clap::{Parser, Subcommand};
+use comfy_table::presets::UTF8_FULL;
+use comfy_table::{Cell, ContentArrangement, Table};
+use console::style;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, fs, path::PathBuf};
 
-use console::style;
-
 #[derive(Parser, Debug)]
-#[command(version, about, long_about = None)]
+#[command(
+    version,
+    about="A CLI tool to track how long it's been since you last did something",
+    long_about = "Timesince helps you record events (like 'workout', 'meditate') and then check how long it's been since you did them."
+)]
 struct Args {
+    #[arg(help = "The event name to query (e.g., 'reading')")]
     event: Option<String>,
     #[command(subcommand)]
     command: Option<Command>,
@@ -21,7 +28,10 @@ struct Events {
 
 #[derive(Subcommand, Debug)]
 enum Command {
+    #[command(about = "Add a new event", long_about = "Adds a new event and sets its timestamp to now")]
     Add,
+
+    #[command(about = "List all events", long_about = "Displays all tracked events with time since they were last updated")]
     List,
 }
 
@@ -54,36 +64,10 @@ fn load_events() -> HashMap<String, DateTime<Utc>> {
     events.events
 }
 
-
 fn human_readable(duration: Duration) -> String {
     let seconds = duration.num_seconds();
-
-    if seconds < 60 {
-        return format!("{} seconds ago", seconds);
-    }
-
-    let minutes = seconds / 60;
-    if minutes < 60 {
-        return format!("{} minutes ago", minutes);
-    }
-
-    let hours = minutes / 60;
-    let remaining_minutes = minutes % 60;
-    if hours < 24 {
-        if remaining_minutes > 0 {
-            return format!("{} hours and {} minutes ago", hours, remaining_minutes);
-        } else {
-            return format!("{} hours ago", hours);
-        }
-    }
-
-    let days = hours / 24;
-    let remaining_hours = hours % 24;
-    if remaining_hours > 0 {
-        return format!("{} days and {} hours ago", days, remaining_hours);
-    } else {
-        return format!("{} days ago", days);
-    }
+    let rounded = Duration::seconds(seconds);
+    HumanTime::from(rounded).to_text_en(chrono_humanize::Accuracy::Precise, chrono_humanize::Tense::Past)
 }
 
 fn print_duration(event_name: &String, timestamp: &DateTime<Utc>, pretty: bool) {
@@ -129,10 +113,22 @@ fn main() {
             if events.is_empty() {
                 println!("No events found.");
             } else {
-                println!("Events:");
+                let mut table = Table::new();
+                table
+                    .load_preset(UTF8_FULL)
+                    .set_content_arrangement(ContentArrangement::Dynamic)
+                    .set_header(vec!["Event", "Last Done"]);
+
                 for (event_name, timestamp) in events.iter() {
-                    print_duration(event_name, timestamp, false);
+                    let now = Utc::now();
+                    let duration = now.signed_duration_since(timestamp);
+                    table.add_row(vec![
+                        Cell::new(event_name),
+                        Cell::new(human_readable(duration)),
+                    ]);
                 }
+
+                println!("{table}");
             }
         }
         Some(Command::Add) => {
