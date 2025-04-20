@@ -110,7 +110,7 @@ fn remove_event(event_name: &String) {
     let mut events = load_events();
     if events.remove(event_name).is_some() {
         save_events(&events);
-        println!("{} '{}' removed!", style("❌").bold().red(), style(event_name).underlined());
+        println!("{} '{}' removed!", style("🗑").bold().red(), style(event_name).underlined());
     } else {
         println!(
             "'{}' {}",
