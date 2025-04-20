@@ -1,5 +1,5 @@
 [package]
-name = "since"
+name = "timesince"
 version = "0.1.0"
 authors = ["Your Name <youremail@example.com>"]
 edition = "2021"

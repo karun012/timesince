@@ -16,16 +16,16 @@ A tiny, beautiful CLI tool to track how long it's been since you last did someth
 
 ```bash
 # Add a new event
-since add workout
+timesince add workout
 
 # Mark an existing event as done now
-since did workout
+timesince did workout
 
 # See how long it's been
-since workout
+timesince workout
 
 # List all events
-since list
+timesince list
 
 # Remove an event
-since remove workout
+timesince remove workout
