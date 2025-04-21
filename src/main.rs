@@ -11,13 +11,14 @@ use std::{collections::HashMap, fs, path::PathBuf};
 #[command(
     version,
     about="A CLI tool to track how long it's been since you last did something",
-    long_about = "Timesince helps you record events (like 'workout', 'meditate') and then check how long it's been since you did them."
+    long_about = "Timesince helps you record events (like 'workout', 'meditate') and then check how long it's been since you did them.",
+    override_usage = "\ntimesince <EVENT>\ntimesince <COMMAND> <EVENT>"
 )]
 struct Args {
-    #[arg(help = "The event name to query (e.g., 'reading')")]
-    event: Option<String>,
     #[command(subcommand)]
     command: Option<Command>,
+    #[arg(help = "The event name to query (e.g., 'reading')")]
+    event: Option<String>,
 }
 
 #[derive (Serialize, Deserialize, Debug)]
