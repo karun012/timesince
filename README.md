@@ -1,5 +1,7 @@
 [![Rust](https://github.com/karun012/timesince/actions/workflows/rust.yml/badge.svg)](https://github.com/karun012/timesince/actions/workflows/rust.yml)
 
+## This is a work in progress. I'm still figuring out Rust, releasing binaries, etc. Please use it with caution :-)
+
 # ⏱️ timesince
 
 A tiny, beautiful CLI tool to track how long it's been since you last did something.
