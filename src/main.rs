@@ -106,6 +106,23 @@ fn set_event(event_name: &String, timestamp: &DateTime<Utc>) {
     save_events(&events);
 }
 
+fn add_event(event_name: &String, timestamp: DateTime<Utc>) {
+    let mut events = load_events();
+    match events.get(event_name) {
+        Some(_) => {
+            println!("Event '{}' already exists. Use 'did' to update it.", event_name);
+            return;
+        }
+        None => {
+            events.insert(event_name.clone(), timestamp);
+            save_events(&events);
+        }
+    }
+    
+    events.insert(event_name.clone(), timestamp);
+    save_events(&events);
+}
+
 fn remove_event(event_name: &String) {
     let mut events = load_events();
     if events.remove(event_name).is_some() {
@@ -120,51 +137,58 @@ fn remove_event(event_name: &String) {
     }
 }
 
+fn show_time_since(event_name: String) {
+    let events = load_events();
+    match events.get(&event_name) {
+        Some(&timestamp) => {
+            print_duration(&event_name, &timestamp, true);
+        }
+        None => {
+            println!("Event '{}' not found. You can add it using the 'add' command", event_name)
+        }
+    }
+}
+
+fn show_all_events() {
+    let events = load_events();
+    if events.is_empty() {
+        println!("No events found.");
+    } else {
+        let mut table = Table::new();
+        table
+            .load_preset(UTF8_FULL)
+            .set_content_arrangement(ContentArrangement::Dynamic)
+            .set_header(vec![
+                Cell::new("Event").add_attribute(Attribute::Bold),
+                Cell::new("Last Done").add_attribute(Attribute::Bold),
+            ]);
+
+        for (event_name, timestamp) in events.iter() {
+            let now = Utc::now();
+            let duration = now.signed_duration_since(timestamp);
+            table.add_row(vec![
+                Cell::new(event_name),
+                Cell::new(human_readable(duration)),
+            ]);
+        }
+
+        println!("{table}");
+    }
+}
+
 fn main() {
     let args = Args::parse();
 
     match args.command {
         None => {
-            let events = load_events();
             let event_name = args.event.expect("Need an event name");
-
-            match events.get(&event_name) {
-                Some(&timestamp) => {
-                    print_duration(&event_name, &timestamp, true);
-                }
-                None => {
-                    println!("Event '{}' not found. You can add it using the 'add' command", event_name)
-                }
-            }
+            show_time_since(event_name);
         }
         Some(Command::List) => {
-            let events = load_events();
-            if events.is_empty() {
-                println!("No events found.");
-            } else {
-                let mut table = Table::new();
-                table
-                    .load_preset(UTF8_FULL)
-                    .set_content_arrangement(ContentArrangement::Dynamic)
-                    .set_header(vec![
-                        Cell::new("Event").add_attribute(Attribute::Bold),
-                        Cell::new("Last Done").add_attribute(Attribute::Bold),
-                    ]);
-
-                for (event_name, timestamp) in events.iter() {
-                    let now = Utc::now();
-                    let duration = now.signed_duration_since(timestamp);
-                    table.add_row(vec![
-                        Cell::new(event_name),
-                        Cell::new(human_readable(duration)),
-                    ]);
-                }
-
-                println!("{table}");
-            }
+            show_all_events();
         }
         Some(Command::Add { event: name }) => {
-            set_event(&name, &Utc::now());
+            add_event(&name, Utc::now());
             println!("{} '{}' added!", style("➕").bold().green(), style(name).underlined());
         }
 
@@ -175,5 +199,49 @@ fn main() {
         Some(Command::Remove { event: name}) => {
             remove_event(&name);
         }
+    }
+}
+
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_human_readable() {
+        let duration = Duration::seconds(3600);
+        assert_eq!(human_readable(duration), "1 hour");
+    }
+
+    #[test]
+    fn test_add_event() {
+        let _ = fs::remove_file(get_data_file());
+        
+        let event_name = "test_event".to_string();
+        let timestamp = Utc::now();
+
+        add_event(&event_name, timestamp);
+        
+        let events = load_events();
+
+        assert_eq!(events.get(&event_name), Some(&timestamp));
+    }
+    
+    #[test]
+    fn test_remove_event() {
+        let _ = fs::remove_file(get_data_file());
+        
+        let event_name_a = "event_a".to_string();
+        let event_name_b = "event_b".to_string();
+        
+        let timestamp = Utc::now();
+
+        add_event(&event_name_a, timestamp);
+        add_event(&event_name_b, timestamp);
+        
+        remove_event(&event_name_b);
+
+        let events = load_events();
+
+        assert_eq!(events.get(&event_name_a), Some(&timestamp));
+        assert_eq!(events.get(&event_name_b), None);
     }
 }
