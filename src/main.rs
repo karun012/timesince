@@ -108,21 +108,21 @@ fn print_duration(event_name: &String, timestamp: &DateTime<Utc>, pretty: bool) 
     }
 }
 
-fn set_event(datastore: &DataStore, event_name: &String, timestamp: &DateTime<Utc>) {
-    let mut events = datastore.load();
-    events.insert(event_name.clone(), *timestamp);
-    datastore.save(&events);
-}
-
 fn mark_event(datastore: &DataStore, event_name: &String) {
-    set_event(datastore, event_name, &Utc::now());
+    let mut events = datastore.load();
+    if !events.contains_key(event_name) {
+        println!("Event '{}' not found. You can add it using the 'add' command", event_name);
+        return;
+    }
+    events.insert(event_name.clone(), Utc::now());
+    datastore.save(&events);
     println!("{} '{}', updated!", "✅", style(event_name).underlined());
 }
 
 fn add_event(datastore: &DataStore, event_name: &String, timestamp: DateTime<Utc>) {
     let mut events = datastore.load();
     if events.contains_key(event_name) {
-        println!("Event '{}' already exists. Use 'did' to update it.", event_name);
+        println!("Event '{}' already exists. Use 'mark' to update it.", event_name);
         return;
     }
 

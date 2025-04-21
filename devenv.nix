@@ -2,7 +2,7 @@
 
 {
   # https://devenv.sh/basics/
-  env.GREET = "devenv";
+  env.GREET = "Welcome to timesince";
 
   # https://devenv.sh/packages/
   packages = [
@@ -16,18 +16,12 @@
     # https://devenv.sh/reference/options/#languagesrustchannel
     channel = "stable";
 
-    components = [ "rustc" "cargo" "clippy" "rustfmt" "rust-analyzer" "rust-src" ];
+    components = [ "rustc" "cargo" "clippy" "rustfmt" "rust-analyzer" "rust-std" ];
   };
-
-  # https://devenv.sh/processes/
-  # processes.cargo-watch.exec = "cargo-watch";
-
-  # https://devenv.sh/services/
-  # services.postgres.enable = true;
 
   # https://devenv.sh/scripts/
   scripts.hello.exec = ''
-    echo hello from $GREET
+    echo $GREET
   '';
 
   enterShell = ''
@@ -36,12 +30,6 @@
     echo "RUST_SRC_PATH: $RUST_SRC_PATH"
     git --version
   '';
-
-  # https://devenv.sh/tasks/
-  # tasks = {
-  #   "myproj:setup".exec = "mytool build";
-  #   "devenv:enterShell".after = [ "myproj:setup" ];
-  # };
 
   # https://devenv.sh/tests/
   enterTest = ''
