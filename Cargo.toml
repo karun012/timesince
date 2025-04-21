@@ -15,3 +15,6 @@ dirs = "4.0"           # To find user’s home directory for storing the JSON fi
 console = "0.15.11"
 comfy-table = "7.1.4"
 chrono-humanize = "0.2.3"
+
+[dev-dependencies]
+tempfile = "3"
