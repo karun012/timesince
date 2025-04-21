@@ -1,17 +1,16 @@
 [package]
 name = "timesince"
 version = "0.1.0"
-authors = ["Your Name <youremail@example.com>"]
+authors = ["Karun Ramakrishnan <root@thegrumpysage.com>"]
 edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+license-file = "LICENSE"
 
 [dependencies]
-clap = { version = "4.0", features = ["derive"] }           # For argument parsing
-chrono = { version = "0.4", features = ["serde"] }         # For handling timestamps and durations
-serde = { version = "1.0", features = ["derive"] } # For serializing/deserializing JSON
-serde_json = "1.0"     # To work with JSON files
-dirs = "4.0"           # To find user’s home directory for storing the JSON file
+clap = { version = "4.0", features = ["derive"] }
+chrono = { version = "0.4", features = ["serde"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+dirs = "4.0"
 console = "0.15.11"
 comfy-table = "7.1.4"
 chrono-humanize = "0.2.3"
