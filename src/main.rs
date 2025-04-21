@@ -38,7 +38,7 @@ enum Command {
     List,
 
     #[command(about = "Mark an existing event as done now", long_about = "Updates the timestamp for an existing event to now")]
-    Did {
+    Mark {
         #[arg(help = "The name of the existing event to mark as done")]
         event: String,
     },
@@ -106,6 +106,11 @@ fn set_event(event_name: &String, timestamp: &DateTime<Utc>) {
     save_events(&events);
 }
 
+fn mark_event(event_name: &String) {
+    set_event(&event_name, &Utc::now());
+    println!("{} '{}', updated!", "✅", style(event_name).underlined());
+}
+
 fn add_event(event_name: &String, timestamp: DateTime<Utc>) {
     let mut events = load_events();
     match events.get(event_name) {
@@ -116,9 +121,10 @@ fn add_event(event_name: &String, timestamp: DateTime<Utc>) {
         None => {
             events.insert(event_name.clone(), timestamp);
             save_events(&events);
+            println!("{} '{}' added!", style("➕").green(), style(event_name).underlined());
         }
     }
-    
+
     events.insert(event_name.clone(), timestamp);
     save_events(&events);
 }
@@ -189,12 +195,9 @@ fn main() {
         }
         Some(Command::Add { event: name }) => {
             add_event(&name, Utc::now());
-            println!("{} '{}' added!", style("➕").bold().green(), style(name).underlined());
         }
-
-        Some(Command::Did { event: name, .. }) => {
-            set_event(&name, &Utc::now());
-            println!("{} '{}', updated!", style("✅").bold().blue(), style(name).underlined());
+        Some(Command::Mark { event: name, .. }) => {
+            mark_event(&name);
         }
         Some(Command::Remove { event: name}) => {
             remove_event(&name);
@@ -202,6 +205,7 @@ fn main() {
     }
 }
 
+#[cfg(test)]
 mod tests {
     use super::*;
 
@@ -214,29 +218,29 @@ mod tests {
     #[test]
     fn test_add_event() {
         let _ = fs::remove_file(get_data_file());
-        
+
         let event_name = "test_event".to_string();
         let timestamp = Utc::now();
 
         add_event(&event_name, timestamp);
-        
+
         let events = load_events();
 
         assert_eq!(events.get(&event_name), Some(&timestamp));
     }
-    
+
     #[test]
     fn test_remove_event() {
         let _ = fs::remove_file(get_data_file());
-        
+
         let event_name_a = "event_a".to_string();
         let event_name_b = "event_b".to_string();
-        
+
         let timestamp = Utc::now();
 
         add_event(&event_name_a, timestamp);
         add_event(&event_name_b, timestamp);
-        
+
         remove_event(&event_name_b);
 
         let events = load_events();

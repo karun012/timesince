@@ -19,7 +19,7 @@ A tiny, beautiful CLI tool to track how long it's been since you last did someth
 timesince add workout
 
 # Mark an existing event as done now
-timesince did workout
+timesince mark workout
 
 # See how long it's been
 timesince workout
