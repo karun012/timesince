@@ -4,6 +4,7 @@ version = "0.1.0"
 authors = ["Karun Ramakrishnan <root@thegrumpysage.com>"]
 edition = "2021"
 license-file = "LICENSE"
+rust-version = "1.82"
 
 [dependencies]
 clap = { version = "4.0", features = ["derive"] }
