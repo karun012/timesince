@@ -82,7 +82,7 @@ fn load_events() -> HashMap<String, DateTime<Utc>> {
 fn human_readable(duration: Duration) -> String {
     let seconds = duration.num_seconds();
     let rounded = Duration::seconds(seconds);
-    HumanTime::from(rounded).to_text_en(chrono_humanize::Accuracy::Precise, chrono_humanize::Tense::Past)
+    HumanTime::from(rounded).to_text_en(chrono_humanize::Accuracy::Precise, chrono_humanize::Tense::Present)
 }
 
 fn print_duration(event_name: &String, timestamp: &DateTime<Utc>, pretty: bool) {
@@ -91,7 +91,7 @@ fn print_duration(event_name: &String, timestamp: &DateTime<Utc>, pretty: bool) 
     if pretty {
         println!(
             "{} {} {}",
-            style("Time since").bold(),
+            style("Time since last").bold(),
             style(event_name).green(),
             style(human_readable(duration)).bold()
         );
