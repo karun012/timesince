@@ -6,6 +6,7 @@ use comfy_table::*;
 use console::style;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, fs, path::PathBuf};
+use strsim::jaro_winkler;
 
 #[derive(Parser, Debug)]
 #[command(
@@ -29,18 +30,12 @@ struct Events {
 
 #[derive(Subcommand, Debug)]
 enum Command {
-    #[command(about = "Add a new event", long_about = "Adds a new event and sets its timestamp to now")]
-    Add {
-        #[arg(help = "The name of the event to add")]
-        event: String
-    },
-
     #[command(about = "List all events", long_about = "Displays all tracked events with time since they were last updated")]
     List,
 
-    #[command(about = "Mark an existing event as done now", long_about = "Updates the timestamp for an existing event to now")]
-    Mark {
-        #[arg(help = "The name of the existing event to mark as done")]
+    #[command(about = "Record that you did something", long_about = "Records an event as done now, creating it if it doesn't exist")]
+    Did {
+        #[arg(help = "The name of the event you did")]
         event: String,
     },
 
@@ -94,42 +89,53 @@ fn human_readable(duration: Duration) -> String {
     HumanTime::from(rounded).to_text_en(chrono_humanize::Accuracy::Precise, chrono_humanize::Tense::Present)
 }
 
+fn find_closest_event<'a>(name: &str, events: &'a HashMap<String, DateTime<Utc>>) -> Option<&'a String> {
+    let threshold = 0.8;
+    events
+        .keys()
+        .map(|key| (key, jaro_winkler(&name.to_lowercase(), &key.to_lowercase())))
+        .filter(|(_, score)| *score >= threshold)
+        .max_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
+        .map(|(key, _)| key)
+}
+
+fn staleness_style(duration: &Duration) -> console::Style {
+    let days = duration.num_days();
+    if days < 1 {
+        console::Style::new().green()
+    } else if days <= 7 {
+        console::Style::new().yellow()
+    } else {
+        console::Style::new().red()
+    }
+}
+
 fn print_duration(event_name: &String, timestamp: &DateTime<Utc>, pretty: bool) {
     let now = Utc::now();
     let duration = now.signed_duration_since(timestamp);
+    let duration_text = human_readable(duration);
     if pretty {
         println!(
             "{} {} {}",
             style("Time since last").bold(),
             style(event_name).green(),
-            style(human_readable(duration)).bold()
+            staleness_style(&duration).bold().apply_to(&duration_text)
         );
     } else {
-        println!("{}: {}", style(event_name).bold().yellow(), human_readable(duration));
+        println!("{}: {}", style(event_name).bold().yellow(), staleness_style(&duration).apply_to(&duration_text));
     }
 }
 
-fn mark_event(datastore: &DataStore, event_name: &String) {
+fn did_event(datastore: &DataStore, event_name: &String) {
     let mut events = datastore.load();
-    if !events.contains_key(event_name) {
-        println!("Event '{}' not found. You can add it using the 'add' command", event_name);
-        return;
-    }
+    let is_new = !events.contains_key(event_name);
     events.insert(event_name.clone(), Utc::now());
     datastore.save(&events);
-    println!("{} '{}', updated!", "✅", style(event_name).underlined());
-}
-
-fn add_event(datastore: &DataStore, event_name: &String, timestamp: DateTime<Utc>) {
-    let mut events = datastore.load();
-    if events.contains_key(event_name) {
-        println!("Event '{}' already exists. Use 'mark' to update it.", event_name);
-        return;
+    if is_new {
+        println!("{} '{}', done!", "✅", style(event_name).underlined());
+    } else {
+        println!("{} '{}', updated!", "✅", style(event_name).underlined());
     }
-
-    events.insert(event_name.clone(), timestamp);
-    datastore.save(&events);
-    println!("{} '{}' added!", style("➕").green(), style(event_name).underlined());
 }
 
 fn remove_event(datastore: &DataStore, event_name: &String) {
@@ -138,11 +144,21 @@ fn remove_event(datastore: &DataStore, event_name: &String) {
         datastore.save(&events);
         println!("{} '{}' removed!", style("🗑").bold().red(), style(event_name).underlined());
     } else {
-        println!(
-            "'{}' {}",
-            style(event_name).italic().yellow(),
-            style("not found.").red()
-        );
+        let events = datastore.load();
+        if let Some(suggestion) = find_closest_event(event_name, &events) {
+            println!(
+                "'{}' {} Did you mean '{}'?",
+                style(event_name).italic().yellow(),
+                style("not found.").red(),
+                style(suggestion).green()
+            );
+        } else {
+            println!(
+                "'{}' {}",
+                style(event_name).italic().yellow(),
+                style("not found.").red()
+            );
+        }
     }
 }
 
@@ -153,7 +169,11 @@ fn show_time_since(datastore: &DataStore, event_name: String) {
             print_duration(&event_name, &timestamp, true);
         }
         None => {
-            println!("Event '{}' not found. You can add it using the 'add' command", event_name);
+            if let Some(suggestion) = find_closest_event(&event_name, &events) {
+                println!("Event '{}' not found. Did you mean '{}'?", event_name, style(suggestion).green());
+            } else {
+                println!("Event '{}' not found. You can track it using 'timesince did {}'", event_name, event_name);
+            }
         }
     }
 }
@@ -172,12 +192,16 @@ fn show_all_events(datastore: &DataStore) {
                 Cell::new("Last Done").add_attribute(Attribute::Bold),
             ]);
 
-        for (event_name, timestamp) in events.iter() {
-            let now = Utc::now();
+        let mut sorted_events: Vec<_> = events.iter().collect();
+        sorted_events.sort_by(|a, b| b.1.cmp(a.1));
+
+        let now = Utc::now();
+        for (event_name, timestamp) in sorted_events {
             let duration = now.signed_duration_since(timestamp);
+            let color = staleness_style(&duration);
             table.add_row(vec![
                 Cell::new(event_name),
-                Cell::new(human_readable(duration)),
+                Cell::new(color.apply_to(human_readable(duration))),
             ]);
         }
 
@@ -197,11 +221,8 @@ fn main() {
         Some(Command::List) => {
             show_all_events(&datastore);
         }
-        Some(Command::Add { event: name }) => {
-            add_event(&datastore, &name, Utc::now());
-        }
-        Some(Command::Mark { event: name }) => {
-            mark_event(&datastore, &name);
+        Some(Command::Did { event: name }) => {
+            did_event(&datastore, &name);
         }
         Some(Command::Remove { event: name }) => {
             remove_event(&datastore, &name);
@@ -227,53 +248,87 @@ mod tests {
     }
 
     #[test]
-    fn test_add_event() {
-        let datastore = test_datastore("add.json");
-
-        let event_name = "test_event".to_string();
-        let timestamp = Utc::now();
-
-        add_event(&datastore, &event_name, timestamp);
-
-        let events = datastore.load();
-
-        assert_eq!(events.get(&event_name), Some(&timestamp));
-    }
-
-    #[test]
     fn test_remove_event() {
         let datastore = test_datastore("remove.json");
 
         let event_name_a = "event_a".to_string();
         let event_name_b = "event_b".to_string();
 
-        let timestamp = Utc::now();
-
-        add_event(&datastore, &event_name_a, timestamp);
-        add_event(&datastore, &event_name_b, timestamp);
+        did_event(&datastore, &event_name_a);
+        did_event(&datastore, &event_name_b);
 
         remove_event(&datastore, &event_name_b);
 
         let events = datastore.load();
 
-        assert_eq!(events.get(&event_name_a), Some(&timestamp));
+        assert!(events.contains_key(&event_name_a));
         assert_eq!(events.get(&event_name_b), None);
     }
 
     #[test]
-    fn test_mark_event() {
-        let datastore = test_datastore("mark.json");
+    fn test_did_event() {
+        let datastore = test_datastore("did.json");
 
-        let event_name = "mark_test".to_string();
+        let event_name = "did_test".to_string();
 
-        add_event(&datastore, &event_name, Utc::now() - Duration::days(10));
-
-        mark_event(&datastore, &event_name);
+        did_event(&datastore, &event_name);
 
         let events = datastore.load();
         let now = Utc::now();
         let updated = events.get(&event_name).unwrap();
 
         assert!((now.signed_duration_since(*updated)).num_seconds() < 5);
+    }
+
+    #[test]
+    fn test_find_closest_event_match() {
+        let mut events = HashMap::new();
+        events.insert("workout".to_string(), Utc::now());
+        events.insert("meditation".to_string(), Utc::now());
+
+        let result = find_closest_event("workut", &events);
+        assert_eq!(result, Some(&"workout".to_string()));
+    }
+
+    #[test]
+    fn test_find_closest_event_no_match() {
+        let mut events = HashMap::new();
+        events.insert("workout".to_string(), Utc::now());
+
+        let result = find_closest_event("zzzzzzz", &events);
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    fn test_staleness_style() {
+        // Green for < 1 day
+        let recent = Duration::hours(12);
+        let s = staleness_style(&recent);
+        assert_eq!(format!("{}", s.apply_to("x")), format!("{}", console::Style::new().green().apply_to("x")));
+
+        // Yellow for 1-7 days
+        let mid = Duration::days(3);
+        let s = staleness_style(&mid);
+        assert_eq!(format!("{}", s.apply_to("x")), format!("{}", console::Style::new().yellow().apply_to("x")));
+
+        // Red for > 7 days
+        let old = Duration::days(14);
+        let s = staleness_style(&old);
+        assert_eq!(format!("{}", s.apply_to("x")), format!("{}", console::Style::new().red().apply_to("x")));
+    }
+
+    #[test]
+    fn test_did_event_auto_creates() {
+        let datastore = test_datastore("did_auto.json");
+
+        let event_name = "new_event".to_string();
+        did_event(&datastore, &event_name);
+
+        let events = datastore.load();
+        assert!(events.contains_key(&event_name));
+
+        let now = Utc::now();
+        let timestamp = events.get(&event_name).unwrap();
+        assert!((now.signed_duration_since(*timestamp)).num_seconds() < 5);
     }
 }

@@ -8,8 +8,7 @@ A tiny, beautiful CLI tool to track how long it's been since you last did someth
 
 ## ✨ Features
 
-- ➕ Add things you want to track
-- ✅ Mark them as done
+- ✅ Record when you do things
 - 📅 See how long it's been
 - 🗑️ Remove ones you don't need
 - 📜 List all your events
@@ -17,11 +16,8 @@ A tiny, beautiful CLI tool to track how long it's been since you last did someth
 ## ⚡ Usage
 
 ```bash
-# Add a new event
-timesince add workout
-
-# Mark an existing event as done now
-timesince mark workout
+# Record that you did something
+timesince did workout
 
 # See how long it's been
 timesince workout
